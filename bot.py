@@ -1,41 +1,35 @@
 import telebot
 from gtts import gTTS
-import os
+import pprint
+import json
+import configparser
 
 import config
+from save_answer_voice import Sound
+import answer_constants_rus
+from database import SingletonDB
 
 ALL_LANG = dict(ru='русский', en='английский')
 ALL_MODE = {1: 'режим распозноваяния голосовый сообщений',
             2: 'режим преобразования текстовых сообщений'}
+
 mode = 1
 lang = 'ru'
-PROXY_IP = '193.160.214.29'
-PROXY_PORT = 3169
-telebot.apihelper.proxy = {'https': f'https://{PROXY_IP}:{PROXY_PORT}'}
+PROXY_IP = '51.83.2.136'
+PROXY_PORT = 1080
+telebot.apihelper.proxy = {'http': f'socks5://{PROXY_IP}:{PROXY_PORT}',
+                           'https': f'socks5://{PROXY_IP}:{PROXY_PORT}'}
 bot = telebot.TeleBot(config.TOKEN)
 
 
-@bot.message_handler(commands=['help', 'set_lang', 'get_lang', 'set_mode', 'get_mode'])
+@bot.message_handler(commands=['help', 'start', 'set_lang', 'get_lang', 'set_mode', 'get_mode'])
 def handle_start_help(message):
     if message.text == '/help':
-        bot.send_message(message.chat.id, '''В зависимости от выбранного \
-режима работы бот либо преобразует текстовые сообщения в аудио, либо аудио \
-сообщения в текстовые 
+        bot.send_message(message.chat.id, answer_constants_rus.help_message)
+    elif message.text == '/start':
+        # отправляем приветсвенное сообщение
+        bot.send_message(message.chat.id, answer_constants_rus.hello_message)
 
-Управляющие команды:
-
-/set_lang - смена языка
-/get_lang - получение текущего языка
-/set_mode - смена режима работы
-/get_mode - получение текущего режима
-
-Поддерживаемые языки:
-    русский
-    английский
-
-Режимы работы:
-    режим преобразования текстовых сообщений
-    режим распозноваяния голосовый сообщений''')
     elif message.text == '/set_lang':
         bot.send_message(message.chat.id, f'Текущий язык: {ALL_LANG[lang]}')
         keyboard = telebot.types.InlineKeyboardMarkup()
@@ -67,14 +61,14 @@ def repeat_audio_messages(message):
 
 @bot.message_handler(content_types=["text"])
 def repeat_text_messages(message):
+    answer = Sound()
     # if mode == 2:
     audio_text = gTTS(text=message.text, lang=lang, slow=False)
-    # name_audio = shorten(message.text)
-    name_audio = 'Audio'
-    audio_text.save(f'{name_audio}.ogg')
-    bot.send_voice(message.chat.id, open(f'{name_audio}.ogg', 'rb'))
-    os.remove('{0}.ogg'.format(name_audio))
-    print(message)
+    audio_text.write_to_fp(answer)
+    bot.send_voice(message.chat.id, answer.get_data())
+    pprint.pprint(json.loads(str(message).replace("'", '"').replace('False', '"False"')
+                                         .replace('True', '"True"').replace('None', '"None"')))
+    print(message.text)
 
 
 @bot.callback_query_handler(func=lambda call: True)
@@ -104,4 +98,7 @@ def shorten(text, length=10, indicator='... '):
 
 
 if __name__ == '__main__':
-    bot.polling(none_stop=True, interval=0)
+    config = configparser.ConfigParser()
+    config.read('config.ini')
+
+    bot.polling(none_stop=True, interval=10)
