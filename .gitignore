@@ -2,3 +2,5 @@
 /save_config.py
 /config.ini
 /database.log
+/.idea/
+/venv/
