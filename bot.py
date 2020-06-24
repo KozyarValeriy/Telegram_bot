@@ -113,8 +113,12 @@ def repeat_text_messages(message):
 
 @bot.message_handler(content_types=["photo"])
 def repeat_text_messages(message):
+    """ Функция для обработки фото """
     start = time.perf_counter()
+
+    # для DEBAG
     print_message(message)
+
     bot.send_message(message.chat.id, str_const.info_msg_photo)
     file_id = message.photo[-1].file_id
     file_info = bot.get_file(file_id)
