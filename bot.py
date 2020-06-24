@@ -1,41 +1,60 @@
-import telebot
-from gtts import gTTS
 import pprint
 import json
+import io
+import time
 
-import config
-from save_answer_voice import Sound
-import answer_constants_rus
-from database import SingletonDB
+from gtts import gTTS
+import telebot
+from sqlalchemy.orm import sessionmaker
+from sqlalchemy import create_engine
 
-# константы
-LANG = {1: "ru", 2: "en"}
-LANG_FOR_USER = {1: 'русский', 2: 'английский'}
-ALL_MODE = {1: 'режим распозноваяния голосовый сообщений',
-            2: 'режим преобразования текстовых сообщений'}
+from models.tables import BotTable, Lang, Mode
+from config import DB_config, TOKEN
+from string_constant import rus as str_const
+from photo import Photo
 
-# подключение к БД
-DB = SingletonDB(config.DB_config)
+bot = telebot.TeleBot(TOKEN)
 
-telebot.apihelper.proxy = {'http': f'socks5://{config.PROXY_IP}:{config.PROXY_PORT}',
-                           'https': f'socks5://{config.PROXY_IP}:{config.PROXY_PORT}'}
-bot = telebot.TeleBot(config.TOKEN)
+PHOTO_URL = "https://api.telegram.org/file/bot{0}/{1}"
 
 
-@bot.message_handler(commands=['help', 'start', 'set_lang', 'get_lang', 'set_mode', 'get_mode'])
+def print_message(msg):
+    try:
+        pprint.pprint(
+            json.loads(str(msg)
+                       .replace("'", '"')
+                       .replace('False', 'false')
+                       .replace('True', 'true')
+                       .replace('None', 'null')
+                       )
+        )
+    except json.decoder.JSONDecodeError:
+        print(msg)
+
+
+@bot.message_handler(commands=['help', 'start', 'stop', 'set_lang', 'get_lang', 'set_mode', 'get_mode'])
 def handle_start_help(message):
     try:
+        current_user = session.query(BotTable).filter(BotTable.chat_id == message.chat.id).first()
         if message.text == '/help':
-            bot.send_message(message.chat.id, answer_constants_rus.help_message)
+            bot.send_message(message.chat.id, str_const.help_message)
         elif message.text == '/start':
             # отправляем приветсвенное сообщение
-            bot.send_message(message.chat.id, answer_constants_rus.hello_message)
+            bot.send_message(message.chat.id, str_const.hello_message)
             # добавление в базу нового чата
-            DB.add_new_user(message.chat.id, 2, 1)
+            if current_user is None:
+                user = BotTable(chat_id=message.chat.id, mode=Mode.TEXT_TO_VOICE.value, lang=Lang.RU.value)
+                session.add(user)
+                session.commit()
+
+        elif message.text == '/stop':
+            if current_user is not None:
+                bot.send_message(message.chat.id, str_const.farewell_msg)
+                session.delete(current_user)
+                session.commit()
 
         elif message.text == '/set_lang':
-            current_chat = DB.get_user(message.chat.id)
-            bot.send_message(message.chat.id, f'Текущий язык: {LANG_FOR_USER[current_chat["lang"]]}')
+            # bot.send_message(message.chat.id, f'Текущий язык: {Lang(current_user.lang).name}')
 
             # Добавление клавиатуры для выбора языка
             keyboard = telebot.types.InlineKeyboardMarkup()
@@ -46,12 +65,10 @@ def handle_start_help(message):
             bot.send_message(message.chat.id, text='Выберите язык:', reply_markup=keyboard)
 
         elif message.text == '/get_lang':
-            current_chat = DB.get_user(message.chat.id)
-            bot.send_message(message.chat.id, f'Текущий язык: {LANG_FOR_USER[current_chat["lang"]]}')
+            bot.send_message(message.chat.id, f'Текущий язык: {Lang(current_user.lang).name}')
 
         elif message.text == '/set_mode':
-            current_chat = DB.get_user(message.chat.id)
-            bot.send_message(message.chat.id, f'Текущий режим:\n\t{ALL_MODE[current_chat["mode"]]}')
+            # bot.send_message(message.chat.id, f'Текущий режим: {Mode(current_user.mode).name}')
 
             # Добавление клавиатуры для выбора языка
             keyboard = telebot.types.InlineKeyboardMarkup()
@@ -62,67 +79,82 @@ def handle_start_help(message):
             bot.send_message(message.chat.id, text='Выбериет режим:', reply_markup=keyboard)
 
         elif message.text == '/get_mode':
-            current_chat = DB.get_user(message.chat.id)
-            bot.send_message(message.chat.id, f'Текущий режим: {ALL_MODE[current_chat["mode"]]}')
+            bot.send_message(message.chat.id, f'Текущий режим: {Mode(current_user.mode).name}')
 
-    except KeyError:
-        # При этой ошибке сокрее всего пользователь еще не в базе. Добавляем
-        DB.add_new_user(message.chat.id, 2, 1)
+    except AttributeError:
+        bot.send_message(message.chat.id, str_const.error)
 
 
 @bot.message_handler(content_types=["voice"])
 def repeat_audio_messages(message):
-    current_chat = DB.get_user(message.chat.id)
-    if current_chat["mode"] == 1:
-        bot.send_message(message.chat.id, 'Пока не работает, скоро будет') 
+    current_user = session.query(BotTable).filter(BotTable.chat_id == message.chat.id).first()
+    if current_user.mode == Mode.VOICE_TO_TEXT.value:
+        bot.send_message(message.chat.id, 'Пока не работает, скоро будет')
     print(message)
 
 
 @bot.message_handler(content_types=["text"])
 def repeat_text_messages(message):
-    current_chat = DB.get_user(message.chat.id)
-    if current_chat is not None:
-        if current_chat["mode"] == 2:
-            answer = Sound()
-            audio_text = gTTS(text=message.text, lang=LANG[current_chat["lang"]], slow=False)
+    current_user = session.query(BotTable).filter(BotTable.chat_id == message.chat.id).first()
+    if current_user is not None:
+        if current_user.mode == Mode.TEXT_TO_VOICE.value:
+            answer = io.BytesIO()
+            audio_text = gTTS(text=message.text, lang=Lang(current_user.lang).name, slow=False)
             audio_text.write_to_fp(answer)
-            bot.send_voice(message.chat.id, answer.get_data())
-
+            answer.seek(0)
+            bot.send_voice(message.chat.id, answer.read())
             # для DEBAG
-            pprint.pprint(json.loads(str(message).replace("'", '"').replace('False', '"False"')
-                                                 .replace('True', '"True"').replace('None', '"None"')))
-            print(message.text)
+            print_message(message)
         else:
-            print('Установлен другой режим')
+            bot.send_message(message.chat.id, "Установлен другой режим")
     else:
-        DB.add_new_user(message.chat.id, 2, 1)
+        bot.send_message(message.chat.id, str_const.error)
+
+
+@bot.message_handler(content_types=["photo"])
+def repeat_text_messages(message):
+    start = time.perf_counter()
+    print_message(message)
+    bot.send_message(message.chat.id, str_const.info_msg_photo)
+    file_id = message.photo[-1].file_id
+    file_info = bot.get_file(file_id)
+    n_clusters = 8
+    if message.caption is not None and message.caption.isdigit():
+        n_clusters = int(message.caption)
+    photo = Photo(url=PHOTO_URL.format(TOKEN, file_info.file_path), n_clusters=n_clusters)
+    bot.send_photo(
+        message.chat.id,
+        photo.get_result_photo(),
+        caption=str_const.info_msg_photo_processing.format(time.perf_counter() - start)
+    )
 
 
 @bot.callback_query_handler(func=lambda call: True)
 def change_settings(call):
+    current_user = session.query(BotTable).filter(BotTable.chat_id == call.message.chat.id).first()
     if call.data.startswith("lang_"):
         # вызвана клавиатура для смены языка
         if call.data.endswith("ru"):
-            DB.update(call.message.chat.id, "lang", 1)
+            current_user.lang = Lang.RU.value
         elif call.data.endswith("en"):
-            DB.update(call.message.chat.id, "lang", 2)
-        current_chat = DB.get_user(call.message.chat.id)
-        bot.send_message(call.message.chat.id, f'Вы установили {LANG_FOR_USER[current_chat["lang"]]} язык')
+            current_user.lang = Lang.EN.value
+        session.commit()
+        bot.send_message(call.message.chat.id, f'Вы установили {Lang(current_user.lang).name} язык')
 
     elif call.data.startswith("mode_"):
         # вызвана клавиатура для смены режима
         if call.data.endswith("1"):
-            DB.update(call.message.chat.id, "mode", 1)
+            current_user.mode = Mode.VOICE_TO_TEXT.value
         elif call.data.endswith("2"):
-            DB.update(call.message.chat.id, "mode", 2)
-        current_chat = DB.get_user(call.message.chat.id)
-        bot.send_message(call.message.chat.id, f'Вы установили режим работы:\n\t{ALL_MODE[current_chat["mode"]]}')
+            current_user.mode = Mode.TEXT_TO_VOICE.value
+        session.commit()
+        bot.send_message(call.message.chat.id, f'Вы установили режим работы: {Mode(current_user.mode).name}')
 
 
 if __name__ == '__main__':
-    try:
-        # conf = configparser.ConfigParser()
-        # conf.read('config.ini')
-        bot.polling(none_stop=True, interval=10)
-    finally:
-        DB.close()
+    engine = create_engine(f"postgresql://{DB_config['user']}:{DB_config['password']}"
+                           f"@{DB_config['host']}/{DB_config['dbname']}")
+    Session = sessionmaker(bind=engine)
+    session = Session()
+
+    bot.polling(none_stop=True, interval=10)
