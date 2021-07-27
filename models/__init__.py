@@ -1,1 +1,1 @@
-from models.tables import BotTable, Lang, Mode
+from models.bot_service_table import BotTable, Lang
