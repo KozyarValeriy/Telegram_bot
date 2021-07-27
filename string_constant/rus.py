@@ -44,8 +44,14 @@ rus = "Русский"
 eng = "Английский"
 
 change_lang = "Выберите язык:"
-change_mode = "Вфберите режим:"
+changed_lang = "Вы установили {lang} язык"
+change_mode = "Выберите режим:"
+changed_mode = "Вы установили режим работы: {mode}"
 
 voice_to_text = "Голос в текст"
 text_to_voice = "Текст в голос"
+
+not_work = "Этот режим пока не работает"
+
+other_mode = "Установлен другой режим"
 

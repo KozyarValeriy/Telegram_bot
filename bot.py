@@ -1,3 +1,4 @@
+import os
 import pprint
 import json
 import io
@@ -13,7 +14,7 @@ from config import DB_config, TOKEN
 from string_constant import rus as str_const
 from photo import Photo
 
-bot = telebot.TeleBot(TOKEN)
+bot = telebot.TeleBot(os.getenv("TOKEN"))
 
 PHOTO_URL = "https://api.telegram.org/file/bot{0}/{1}"
 
@@ -85,7 +86,7 @@ def handle_start_help(message):
 def repeat_audio_messages(message):
     current_user = session.query(BotTable).filter(BotTable.chat_id == message.chat.id).first()
     if current_user.mode == Mode.VOICE_TO_TEXT.value:
-        bot.send_message(message.chat.id, 'Пока не работает, скоро будет')
+        bot.send_message(message.chat.id, str_const.not_work)
     print(message)
 
 
@@ -102,7 +103,7 @@ def repeat_text_messages(message):
             # для DEBAG
             print_message(message)
         else:
-            bot.send_message(message.chat.id, "Установлен другой режим")
+            bot.send_message(message.chat.id, str_const.other_mode)
     else:
         bot.send_message(message.chat.id, str_const.error)
 
@@ -139,7 +140,7 @@ def change_settings(call):
         elif call.data.endswith("en"):
             current_user.lang = Lang.EN.value
         session.commit()
-        bot.send_message(call.message.chat.id, f'Вы установили {Lang(current_user.lang).name} язык')
+        bot.send_message(call.message.chat.id, str_const.changed_lang.format(lang=Lang(current_user.lang).name))
 
     elif call.data.startswith("mode_"):
         # вызвана клавиатура для смены режима
@@ -148,7 +149,7 @@ def change_settings(call):
         elif call.data.endswith("2"):
             current_user.mode = Mode.TEXT_TO_VOICE.value
         session.commit()
-        bot.send_message(call.message.chat.id, f'Вы установили режим работы: {Mode(current_user.mode).name}')
+        bot.send_message(call.message.chat.id, str_const.changed_mode.format(mode=Mode(current_user.mode).name))
 
 
 if __name__ == '__main__':
