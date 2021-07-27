@@ -4,7 +4,7 @@ import random
 
 from sklearn.cluster import KMeans
 import skimage
-from skimage import io
+import skimage.io
 import numpy as np
 
 
@@ -16,7 +16,7 @@ class Photo:
         :param url: url до фото,
         :param n_clusters: кол-во цветов, которые надо оставить в фото
         """
-        self.image = io.imread(url)
+        self.image = skimage.io.imread(url)
         self.photo_y = len(self.image)
         self.photo_x = len(self.image[0])
         self.n_clusters = n_clusters
@@ -57,7 +57,7 @@ class Photo:
             image_median[pos_y][pos_x] = np.array([r_median[i], g_median[i], b_median[i]])
 
         file_name = "".join(random.choice(string.ascii_letters) for _ in range(20)) + ".png"
-        io.imsave(file_name, skimage.img_as_ubyte(image_median))
+        skimage.io.imsave(file_name, skimage.img_as_ubyte(image_median))
         with open(file_name, "rb") as f:
             res_img = f.read()
         os.remove(file_name)

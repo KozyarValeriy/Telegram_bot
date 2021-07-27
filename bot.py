@@ -8,7 +8,7 @@ import telebot
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy import create_engine
 
-from models.tables import BotTable, Lang, Mode
+from models import BotTable, Lang, Mode
 from config import DB_config, TOKEN
 from string_constant import rus as str_const
 from photo import Photo
@@ -54,32 +54,28 @@ def handle_start_help(message):
                 session.commit()
 
         elif message.text == '/set_lang':
-            # bot.send_message(message.chat.id, f'Текущий язык: {Lang(current_user.lang).name}')
-
             # Добавление клавиатуры для выбора языка
             keyboard = telebot.types.InlineKeyboardMarkup()
-            key_ru = telebot.types.InlineKeyboardButton(text='Русский', callback_data='lang_ru')
+            key_ru = telebot.types.InlineKeyboardButton(text=str_const.rus, callback_data='lang_ru')
             keyboard.add(key_ru)
-            key_en = telebot.types.InlineKeyboardButton(text='Английский', callback_data='lang_en')
+            key_en = telebot.types.InlineKeyboardButton(text=str_const.eng, callback_data='lang_en')
             keyboard.add(key_en)
-            bot.send_message(message.chat.id, text='Выберите язык:', reply_markup=keyboard)
+            bot.send_message(message.chat.id, text=str_const.change_lang, reply_markup=keyboard)
 
         elif message.text == '/get_lang':
-            bot.send_message(message.chat.id, f'Текущий язык: {Lang(current_user.lang).name}')
+            bot.send_message(message.chat.id, str_const.current_lang.format(Lang(current_user.lang).name))
 
         elif message.text == '/set_mode':
-            # bot.send_message(message.chat.id, f'Текущий режим: {Mode(current_user.mode).name}')
-
             # Добавление клавиатуры для выбора языка
             keyboard = telebot.types.InlineKeyboardMarkup()
-            key_mode_1 = telebot.types.InlineKeyboardButton(text='Голос в текст', callback_data='mode_1')
+            key_mode_1 = telebot.types.InlineKeyboardButton(text=str_const.voice_to_text, callback_data='mode_1')
             keyboard.add(key_mode_1)
-            key_mode_2 = telebot.types.InlineKeyboardButton(text='Текст в голос', callback_data='mode_2')
+            key_mode_2 = telebot.types.InlineKeyboardButton(text=str_const.text_to_voice, callback_data='mode_2')
             keyboard.add(key_mode_2)
-            bot.send_message(message.chat.id, text='Выбериет режим:', reply_markup=keyboard)
+            bot.send_message(message.chat.id, text=str_const.change_mode, reply_markup=keyboard)
 
         elif message.text == '/get_mode':
-            bot.send_message(message.chat.id, f'Текущий режим: {Mode(current_user.mode).name}')
+            bot.send_message(message.chat.id, str_const.current_mode.format(Mode(current_user.mode).name))
 
     except AttributeError:
         bot.send_message(message.chat.id, str_const.error)
