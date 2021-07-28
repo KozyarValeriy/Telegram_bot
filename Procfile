@@ -1,1 +1,1 @@
-web: python models/bot_service_table.py; python bot.py
+worker: python models/bot_service_table.py; python bot.py
