@@ -1,0 +1,1 @@
+web: python models/bot_service_table.py; python bot.py

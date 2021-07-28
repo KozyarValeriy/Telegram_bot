@@ -12,6 +12,8 @@ from logger import get_logger
 from models import BotTable, Lang
 from photo import Photo
 from string_constant import rus as str_const
+from utils import get_db_url
+
 
 # constants
 TOKEN = os.getenv("TOKEN")
@@ -188,7 +190,8 @@ def change_settings(call):
 
 
 if __name__ == '__main__':
-    engine = create_engine("sqlite:///database.db?check_same_thread=false")
+    log.info(f"DB info: {get_db_url()}")
+    engine = create_engine(get_db_url())
     Session = sessionmaker(bind=engine)
     session = Session()
     log.info("Starting bot")

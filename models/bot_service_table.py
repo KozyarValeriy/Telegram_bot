@@ -3,6 +3,8 @@ from enum import Enum
 from sqlalchemy import Column, create_engine, Integer
 from sqlalchemy.ext.declarative import declarative_base
 
+from utils import get_db_url
+
 Base = declarative_base()
 
 
@@ -24,5 +26,5 @@ class Lang(Enum):
 
 
 if __name__ == "__main__":
-    engine = create_engine("sqlite:///database.db", echo=True)
+    engine = create_engine(get_db_url(), echo=True)
     Base.metadata.create_all(engine)
