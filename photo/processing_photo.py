@@ -2,6 +2,7 @@ import os
 import random
 import string
 from multiprocessing import Process, Queue
+from typing import List
 
 import numpy as np
 import skimage
@@ -23,7 +24,7 @@ class Photo(Process):
         self.photo_y = len(self.image)
         self.photo_x = len(self.image[0])
         self.n_clusters = n_clusters
-        self._queue = Queue(1)
+        self._queue: Queue = Queue(1)
 
     @property
     def queue(self):
@@ -41,9 +42,9 @@ class Photo(Process):
         # Training K-means algorithm
         k_means = KMeans(init='k-means++', n_clusters=self.n_clusters).fit(obj)
         n_clusters = k_means.n_clusters
-        rgb_r = [list() for _ in range(n_clusters)]
-        rgb_g = [list() for _ in range(n_clusters)]
-        rgb_b = [list() for _ in range(n_clusters)]
+        rgb_r: List[list] = [list() for _ in range(n_clusters)]
+        rgb_g: List[list] = [list() for _ in range(n_clusters)]
+        rgb_b: List[list] = [list() for _ in range(n_clusters)]
 
         # Getting RGB colors for each cluster
         for i in range(len(k_means.labels_)):

@@ -111,7 +111,7 @@ def repeat_audio_messages(message):
 
 
 @bot.message_handler(content_types=["text"])
-def repeat_text_messages(message):
+def text_messages(message):
     """ Handle for processing text message """
     log.info("Handling text")
     log.debug(str(message))
@@ -131,7 +131,7 @@ def repeat_text_messages(message):
 
 
 @bot.message_handler(content_types=["photo"])
-def repeat_text_messages(message):
+def photo_messages(message):
     """ Handle for processing image in message """
     log.info("Handling photo")
     log.debug(str(message))
@@ -177,8 +177,9 @@ def repeat_text_messages(message):
 
 @bot.callback_query_handler(func=lambda call: call.data.startswith("lang_"))
 def change_settings(call):
+    """ Function for showing keyboard """
     log.info("Handling keyboard for lang_")
-    current_user = session.query(BotTable).filter(BotTable.chat_id == call.message.chat.id).first()
+    current_user = BotTable.get_chat(call.message.chat.id, session)
     if call.data.startswith("lang_"):
         # keyboard for changing lang
         if call.data.endswith("ru"):
