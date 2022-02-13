@@ -1,15 +1,18 @@
+import asyncio
 import os
 import random
 import string
 from multiprocessing import Process, Queue
+from typing import List
 
 import numpy as np
 import skimage
 import skimage.io
 from sklearn.cluster import KMeans
+from telebot import asyncio_helper
 
 
-class Photo(Process):
+class PhotoWorker(Process):
 
     def __init__(self, url: str, n_clusters: int = 3):
         """ Method for initialization an instance
@@ -23,17 +26,26 @@ class Photo(Process):
         self.photo_y = len(self.image)
         self.photo_x = len(self.image[0])
         self.n_clusters = n_clusters
-        self._queue = Queue(1)
+        self._queue: Queue = Queue(1)
 
     @property
     def queue(self):
         return self._queue
 
+    @staticmethod
+    def _close_session():
+        """ Without call this func getting error:
+
+        Unclosed client session
+        client_session: <aiohttp.client.ClientSession object at 0x00000235C9C1D520>
+        """
+        asyncio.run(asyncio_helper.session_manager.session.close())
+
     def run(self):
         """ Method for changing a number of colors in image
 
-                :return: image in bytes
-                """
+        :return: image in bytes
+        """
         transform_image = skimage.img_as_float(self.image)
         # creating feature objects matrix
         obj = np.reshape(transform_image, (self.photo_y * self.photo_x, len(transform_image[0][0])))
@@ -41,9 +53,9 @@ class Photo(Process):
         # Training K-means algorithm
         k_means = KMeans(init='k-means++', n_clusters=self.n_clusters).fit(obj)
         n_clusters = k_means.n_clusters
-        rgb_r = [list() for _ in range(n_clusters)]
-        rgb_g = [list() for _ in range(n_clusters)]
-        rgb_b = [list() for _ in range(n_clusters)]
+        rgb_r: List[list] = [list() for _ in range(n_clusters)]
+        rgb_g: List[list] = [list() for _ in range(n_clusters)]
+        rgb_b: List[list] = [list() for _ in range(n_clusters)]
 
         # Getting RGB colors for each cluster
         for i in range(len(k_means.labels_)):
@@ -70,6 +82,8 @@ class Photo(Process):
             res_img = f.read()
         os.remove(file_name)
 
+        if os.sys.platform.startswith("win"):
+            self._close_session()
         self._queue.put(res_img)
 
     # def get_result_photo(self) -> bytes:

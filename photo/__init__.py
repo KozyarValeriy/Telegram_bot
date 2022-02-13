@@ -1,1 +1,1 @@
-from photo.processing_photo import Photo
+from photo.processing_photo import PhotoWorker
