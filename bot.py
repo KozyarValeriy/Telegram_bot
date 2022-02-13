@@ -5,15 +5,14 @@ import queue
 import time
 
 import telebot
-from telebot.async_telebot import AsyncTeleBot
 from gtts import gTTS
+from telebot.async_telebot import AsyncTeleBot
 
 from logger import get_logger
 from models import BotTable, Lang
 from models.db import async_session
 from photo import PhotoWorker
 from string_constant import rus as str_const
-
 
 # constants
 TOKEN = os.getenv("TOKEN")

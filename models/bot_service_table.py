@@ -2,10 +2,9 @@ from enum import Enum
 from typing import Optional
 
 from sqlalchemy import Column, Integer, TIMESTAMP, func, select
+from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import Session
-from sqlalchemy.ext.asyncio import AsyncSession
-
 
 Base = declarative_base()
 
