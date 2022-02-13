@@ -1,11 +1,11 @@
 from enum import Enum
 from typing import Optional
 
-from sqlalchemy import Column, create_engine, Integer, TIMESTAMP, func
+from sqlalchemy import Column, Integer, TIMESTAMP, func, select
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import Session
+from sqlalchemy.ext.asyncio import AsyncSession
 
-from utils import get_db_url
 
 Base = declarative_base()
 
@@ -35,6 +35,20 @@ class BotTable(Base):  # type: ignore
             .first()
         return chat
 
+    @classmethod
+    async def get_chat_async(cls, chat_id: int, session: AsyncSession) -> Optional["BotTable"]:
+        """ Function for getting chat from db
+
+        :param chat_id: chat id for searching chat in db,
+        :param session: session for query into db,
+        :return: BotTable instance or None
+        """
+        stmt = select(cls) \
+            .filter_by(chat_id=chat_id)
+        result = await session.execute(stmt)
+        chat = result.scalars().first()
+        return chat
+
 
 class Lang(Enum):
     """ Class for enumerating languages """
@@ -42,6 +56,6 @@ class Lang(Enum):
     EN = 2
 
 
-if __name__ == "__main__":
-    engine = create_engine(get_db_url(), echo=True)
-    Base.metadata.create_all(engine)
+# if __name__ == "__main__":
+#     engine = create_engine(get_db_url(), echo=True)
+#     Base.metadata.create_all(engine)
